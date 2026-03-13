@@ -1,0 +1,29 @@
+name: SIGAA News Bot
+
+on:
+  schedule:
+    - cron: '0 9,15,21,3 * * *'  # 06:00, 12:00, 18:00, 00:00 BRT
+  workflow_dispatch:       # allow manual trigger
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install playwright python-telegram-bot asyncio 
+          playwright install chromium
+
+      - name: Run bot
+        env:
+          SIGAA_USERNAME: ${{ secrets.SIGAA_USERNAME }}
+          SIGAA_PASSWORD: ${{ secrets.SIGAA_PASSWORD }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_USER_ID: ${{ secrets.TELEGRAM_USER_ID }}
+        run: python whatsapp_sigaa_news.py
