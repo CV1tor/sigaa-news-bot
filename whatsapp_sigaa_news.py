@@ -1,4 +1,6 @@
 import datetime
+import hashlib
+import json
 import os
 from datetime import date
 import asyncio
@@ -11,13 +13,38 @@ TELEGRAM_USER_ID = os.getenv("TELEGRAM_USER_ID")
 TODAY = date.today()
 
 
+def load_sent_news():
+    if not os.path.isfile("storage/sent_news.json"):
+        return set()
+    with open("storage/sent_news.json", "r") as f:
+        stored_news = json.load(f)
+    today = TODAY.isoformat()
+    return set(stored_news.get(today, []))
 
-async def send_to_telegram(news) :
+def save_sent_news(sent_news):
+    today = TODAY.isoformat()
+    stored_news = {
+        today: list(sent_news)
+    }
+    with open("storage/sent_news.json", "w") as f:
+        json.dump(stored_news, f)
+def hash_news(news):
+    raw = f"{news['class']}|{news['title']}"
+    return hashlib.sha256(raw.encode()).hexdigest()
+async def send_to_telegram(news, sent_news) :
     if(len(news) == 0):
         print("Nenhuma notícia lançada hoje nas suas turmas!")
     else:
+        sent = set()
         for new in news:
+            hashed_new = hash_news(new)
+            if hashed_new in sent_news:
+                continue
             await send_message(format_news_message(new["title"], new["content"], new["class"]))
+            sent.add(hashed_new)
+        if len(sent) > 0:
+            save_sent_news(sent_news | sent)
+
 async def send_message(message):
     async with Bot(TELEGRAM_BOT_TOKEN) as bot:
         await bot.send_message(chat_id=TELEGRAM_USER_ID, text=message, parse_mode="HTML")
@@ -56,7 +83,6 @@ with sync_playwright() as p:
     browser = p.chromium.launch(
         args=[
             "--start-maximized",
-            "--window-size=12800,720",
             "--disable-blink-features=AutomationControlled",
             "--no-sandbox",
             "--disable-extensions"
@@ -64,18 +90,17 @@ with sync_playwright() as p:
     )
 
     if not os.path.isfile("state.json"):
-        generate_authenticated_state(browser)
-        
+            generate_authenticated_state(browser)
 
-    
     context = browser.new_context(storage_state="state.json")
     page = context.new_page()
-    
+
     if "autenticacao" in page.url:
         os.remove("state.json")
         generate_authenticated_state(browser)
-    
+
     login(page)
+    
     news = []
     
     for subject in page.locator("td.descricao").all():
@@ -104,7 +129,7 @@ with sync_playwright() as p:
         page.wait_for_load_state()
         
 
-asyncio.run(send_to_telegram(news))
+asyncio.run(send_to_telegram(news, load_sent_news()))
     
      
     

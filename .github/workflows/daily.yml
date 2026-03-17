@@ -14,10 +14,17 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
+      - name: Restore sent news cache
+        uses: actions/cache@v3
+        with:
+          path: storage/sent_news.json
+          key: sent-news-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            sent-news-${{ runner.os }}-
 
       - name: Install dependencies
         run: |
-          pip install playwright python-telegram-bot asyncio
+          pip install playwright python-telegram-bot
           playwright install chromium
 
       - name: Run bot
