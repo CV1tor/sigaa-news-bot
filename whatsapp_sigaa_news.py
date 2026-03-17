@@ -22,6 +22,7 @@ def load_sent_news():
     return set(stored_news.get(today, []))
 
 def save_sent_news(sent_news):
+    os.makedirs("storage", exist_ok=True)
     today = TODAY.isoformat()
     stored_news = {
         today: list(sent_news)
